@@ -1,11 +1,16 @@
 section .data
     v1: DD 1024 DUP(0.0)                                ;| TODO: Check wether these two have equal width or not
+    v2: DD 1024 DUP(0.0)
     Transpose: DD 1024 DUP(0.0)                         ;|
     result: DD 1024 DUP(0.0)
     v1_real_width: DQ 0
     v1_q_width: DQ 0
     v1_real_height: DQ 0
     v1_q_height: DQ 0
+    v2_real_width: DQ 0
+    v2_q_width: DQ 0
+    v2_real_height: DQ 0
+    v2_q_height: DQ 0
     transpose_real_width: DQ 0
     transpose_q_width: DQ 0
     transpose_real_height: DQ 0
@@ -14,6 +19,7 @@ section .data
     result_q_width: DQ 0
     result_real_height: DQ 0
     result_q_height: DQ 0
+    zero: DD 0.0
     printf_format_string: DB "%f ", 0
     read_float_format: DB "%f", 0
     print_int_format: DB "%ld ", 0
@@ -49,6 +55,120 @@ asm_main:
 
 ret
 
+make_transpose_of_v2:
+
+	push rbp                                         
+    push rbx                                         
+    push r12                                         
+    push r13                                        
+    push r14                                       
+    push r15    
+
+    sub rsp, 8
+
+    mov rdi, Transpose
+    mov rsi, transpose_real_height
+    mov rdx, transpose_real_width
+    call clear_matrix
+
+    mov rax, [v2_real_height]
+    mov [transpose_real_width], rax
+    mov rax, [v2_q_height]
+    mov [transpose_q_width], rax
+    mov rax, [v2_real_width]
+    mov [transpose_real_height], rax
+    mov rax, [v2_q_width]
+    mov [transpose_q_height], rax
+
+    xor r12, r12
+
+    make_transpose_outer_loop:
+
+        xor r13, r13
+
+        make_transpose_inner_loop:
+
+            mov rax, r13
+            imul QWORD[v2_q_width]
+            add rax, r12
+            mov rbx, [v2 + rax * 4]
+
+            mov rax, r12
+            imul QWORD[transpose_q_width]
+            add rax, r13
+            mov [Transpose + rax * 4], rbx
+
+        inc r13
+        cmp r13, [transpose_real_width]
+        jl make_transpose_inner_loop
+
+    inc r12
+    cmp r12, [transpose_real_height]
+    jl make_transpose_outer_loop
+
+    add rsp, 8
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    pop rbp
+
+    ret
+
+clear_matrix:                                           ;RDI --> Pointer to Matrix | RSI --> Matrix height pointer | RDX --> Matrix width pointer
+
+	push rbp                                         
+    push rbx                                         
+    push r12                                         
+    push r13                                        
+    push r14                                       
+    push r15    
+
+    sub rsp, 8
+
+    mov rbx, rdi
+    mov r14, rsi
+    mov r15, rdx
+
+    xor r12, r12                                        ;  --> Using R12 as the outer-loop index
+
+    clear_matrix_outer_loop:                                         ;  --> Outer loop that prints each row in a different line
+
+        xor r13, r13                                    ;  --> Using R13 as the inner-loop index
+
+        clear_matrix_inner_loop:                        ;  --> Inner loop that prints elements of a row seperately
+
+            movss xmm0, [zero]
+
+            mov rax, r12
+            imul QWORD[r15 + 8]
+            add rax, r13
+            
+            movss [rbx + rax * 4], xmm0
+
+        inc r13                                         ;| --> Increasing index and checking condition
+        cmp r13, [r15 + 8]                              ;|
+        jl clear_matrix_inner_loop                      ;|
+
+        call print_nl                                   ;| --> Printing new line to finish current row then increase
+
+    inc r12                                             ;|     index and check condition
+    cmp r12, [r14 + 8]                                  ;|
+    jl clear_matrix_outer_loop                          ;|
+
+    add rsp, 8
+
+    pop r15  
+    pop r14  
+    pop r13  
+    pop r12  
+    pop rbx  
+    pop rbp  
+
+    ret
+
 print_matrix:                                           ;RDI --> Pointer to Matrix | RSI --> Matrix height pointer | RDX --> Matrix width pointer
 
 	push rbp                                         
@@ -71,11 +191,11 @@ print_matrix:                                           ;RDI --> Pointer to Matr
 
     xor r12, r12                                        ;  --> Using R12 as the outer-loop index
 
-    outer_loop:                                         ;  --> Outer loop that prints each row in a different line
+    print_matrix_outer_loop:                                         ;  --> Outer loop that prints each row in a different line
 
         xor r13, r13                                    ;  --> Using R13 as the inner-loop index
 
-        inner_loop:                                     ;  --> Inner loop that prints elements of a row seperately
+        print_matrix_inner_loop:                                     ;  --> Inner loop that prints elements of a row seperately
 
             mov rax, r12
             imul QWORD[r15 + 8]
@@ -86,13 +206,13 @@ print_matrix:                                           ;RDI --> Pointer to Matr
 
         inc r13                                         ;| --> Increasing index and checking condition
         cmp r13, [r15]                                  ;|
-        jl inner_loop                                   ;|
+        jl print_matrix_inner_loop                                   ;|
 
         call print_nl                                   ;| --> Printing new line to finish current row then increase
 
     inc r12                                             ;|     index and check condition
     cmp r12, [r14]                                      ;|
-    jl outer_loop                                       ;|
+    jl print_matrix_outer_loop                                       ;|
 
     jmp end_of_print_matrix                             ;  --> Skip empty matrix message
 
@@ -112,9 +232,10 @@ print_matrix:                                           ;RDI --> Pointer to Matr
     pop rbx  
     pop rbp  
 
-ret
+    ret
 
-multiply_matrices:
+
+multiply_v1_and_transpose:
 
 	push rbp                                         
     push rbx                                         
@@ -169,7 +290,7 @@ multiply_matrices:
     pop rbx  
     pop rbp  
 
-ret
+    ret
                                                         ;  TODO: Implement sequential
 calculate_row_in_column:                                ;RDI --> Row number | RSI --> Column number
 
@@ -216,7 +337,7 @@ calculate_row_in_column:                                ;RDI --> Row number | RS
     pop rbx  
     pop rbp  
 
-ret
+    ret
 
 read_matrix:                                            ;RDI --> Pointer to matrix allocated memory | RSI --> Matrix size
 
@@ -260,7 +381,7 @@ read_matrix:                                            ;RDI --> Pointer to matr
     pop rbx  
     pop rbp  
 
-ret
+    ret
 
 printf_float:                                           ;XMM0 --> Printing argument
     
@@ -273,7 +394,7 @@ printf_float:                                           ;XMM0 --> Printing argum
 
     add rsp, 8
 
-ret
+    ret
 
 print_rdi_string:                                       ;RDI --> Pointer to printing string
     
@@ -284,7 +405,7 @@ print_rdi_string:                                       ;RDI --> Pointer to prin
 
     add rsp, 8
 
-ret
+    ret
 
 read_float:                                             ;RAX --> Input value
 
@@ -298,7 +419,7 @@ read_float:                                             ;RAX --> Input value
     
     add rsp, 8
 
-ret
+    ret
 
 print_int:                                              ;RDI --> Printing argument
 
@@ -312,7 +433,7 @@ print_int:                                              ;RDI --> Printing argume
     
     add rsp, 8
 
-ret
+    ret
 
 print_nl:
 
@@ -323,7 +444,7 @@ print_nl:
     
     add rsp, 8
 
-ret
+    ret
 
 read_int:                                               ;RAX --> Result
 
@@ -338,4 +459,4 @@ read_int:                                               ;RAX --> Result
 
     add rsp, 8
 
-ret
+    ret
