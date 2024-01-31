@@ -1,6 +1,6 @@
 section .data
-    v1: DD 1024 DUP(0.0)
-    Transpose: DD 1024 DUP(0.0)
+    v1: DD 1024 DUP(0.0)                                ;| TODO: Check wether these two have equal width or not
+    Transpose: DD 1024 DUP(0.0)                         ;|
     result: DD 1024 DUP(0.0)
     v1_real_width: DQ 0
     v1_q_width: DQ 0
@@ -63,9 +63,9 @@ multiply_matrices:
     mov [result_real_height], rax
     mov rax, [v1_q_height]
     mov [result_q_height], rax
-    mov rax, [transpose_real_width]
+    mov rax, [transpose_real_height]
     mov [result_real_width], rax
-    mov rax, [transpose_q_width]
+    mov rax, [transpose_q_height]
     mov [result_q_width], rax
 
     xor r12, r12
@@ -80,6 +80,12 @@ multiply_matrices:
             mov rsi, r13
 
             call calculate_row_in_column
+
+            mov rax, r12
+            imul rax, [result_q_width]
+            add rax, r13
+            shl rax, 2
+            movss [result + rax * 4], xmm0
 
         inc r13
         cmp r13, [result_real_width]
@@ -99,7 +105,7 @@ multiply_matrices:
     pop rbp  
 
 ret
-
+                                                        ;  TODO: Implement sequential
 calculate_row_in_column:                                ;RDI --> Row number | RSI --> Column number
 
 	push rbp                                         
@@ -111,7 +117,30 @@ calculate_row_in_column:                                ;RDI --> Row number | RS
 
     sub rsp, 8
 
+    mov rax, rdi
+    imul rax, [v1_q_width]
+    shl rax, 2
+    add rax, v1
+    mov r12, rax
 
+    mov rax, rsi
+    imul rax, [transpose_q_width]
+    shl rax, 2
+    add rax, Transpose
+    mov r13, rax
+
+    xor rcx, rcx
+    xorps xmm0, xmm0
+
+    calculate_row_in_column_loop:
+
+        movaps xmm1, [r12 + rcx * 4]
+        dpps xmm1, [r13 + rcx * 4], 0xf1
+        addss xmm0, xmm1
+
+    add rcx, 4
+    cmp rcx, [v1_q_width]
+    jl calculate_row_in_column_loop
 
     add rsp, 8
 
