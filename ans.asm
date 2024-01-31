@@ -26,3 +26,82 @@ asm_main:
     pop rbp                                             ;|
 
 ret
+
+
+printf_float:                                           ;XMM0 --> Printing argument
+    
+    sub rsp, 8
+
+    cvtss2sd xmm0, xmm0                                 ;| --> Print float using printf with the format declared earlier
+    mov rdi, printf_format_string                       ;|                                        
+    mov rax, 1                                          ;|                                        
+    call printf                                         ;|        
+
+    add rsp, 8
+
+ret
+
+print_rdi_string:                                       ;RDI --> Pointer to printing string
+    
+    sub rsp, 8
+
+    xor rax, rax                                        ;| --> Print the string                            
+    call printf                                         ;|
+
+    add rsp, 8
+
+ret
+
+read_float:                                             ;RAX --> Input value
+
+    sub rsp, 8
+
+    mov rsi, rsp                                        ;| --> Setting scanf input registers and reading float                     
+    mov rdi, read_float_format                          ;|                   
+    mov rax, 1                                          ;|   
+    call scanf                                          ;|   
+    mov eax, DWORD [rsp]                                ;  --> Moving result to RAX              
+    
+    add rsp, 8
+
+ret
+
+print_int:                                              ;RDI --> Printing argument
+
+    sub rsp, 8
+
+    mov rsi, rdi
+
+    mov rdi, print_int_format                           ;  --> Setting print format string
+    mov rax, 1                                          ;  --> Setting RAX (AL) to number of vector inputs
+    call printf                                         ;  --> Call subroutine
+    
+    add rsp, 8
+
+ret
+
+print_nl:
+
+    sub rsp, 8
+
+    mov rdi, 10                                         ;| --> Set new line ASCII code (10) and call putchar subroutine
+    call putchar                                        ;|    
+    
+    add rsp, 8
+
+ret
+
+read_int:                                               ;RAX --> Result
+
+    sub rsp, 8
+
+    mov rsi, rsp                                        ;| --> Setting scanf arguments including format string
+    mov rdi, read_int_format                            ;|            
+    mov rax, 1                                          ;  --> Setting RAX (AL) to number of vector inputs
+    call scanf                                          ;  --> Calling subroutine
+
+    mov rax, [rsp]                                      ;  --> Moving result to RAX
+
+    add rsp, 8
+
+ret
