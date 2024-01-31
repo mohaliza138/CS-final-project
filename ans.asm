@@ -18,6 +18,7 @@ section .data
     read_float_format: DB "%f", 0
     print_int_format: DB "%ld ", 0
     read_int_format: DB "%ld", 0
+    empty_matrix_error: DB "Invalid matrix sizes!", 10, 0
 
 segment .text
     global asm_main                                     ;  --> Declaring asm_main function globally in order to call it as a function in C
@@ -45,6 +46,71 @@ asm_main:
 	pop r12                                             ;|
     pop rbx                                             ;|
     pop rbp                                             ;|
+
+ret
+
+print_matrix:                                           ;RDI --> Pointer to Matrix | RSI --> Matrix height pointer | RDX --> Matrix width pointer
+
+	push rbp                                         
+    push rbx                                         
+    push r12                                         
+    push r13                                        
+    push r14                                       
+    push r15    
+
+    sub rsp, 8
+    
+    cmp rsi, 0                                          ;| --> If matrix size was 0 print some message   
+    je zero_sized_printing_matrix                       ;|
+    cmp rdx, 0                                          ;|
+    je zero_sized_printing_matrix                       ;|
+
+    mov rbx, rdi
+    mov r14, rsi
+    mov r15, rdx
+
+    xor r12, r12                                        ;  --> Using R12 as the outer-loop index
+
+    outer_loop:                                         ;  --> Outer loop that prints each row in a different line
+
+        xor r13, r13                                    ;  --> Using R13 as the inner-loop index
+
+        inner_loop:                                     ;  --> Inner loop that prints elements of a row seperately
+
+            mov rax, r12
+            imul QWORD[r15 + 8]
+            add rax, r13
+
+            movss xmm0, [rbx + rax * 4]                 ;| --> Printing element
+            call printf_float                           ;|
+
+        inc r13                                         ;| --> Increasing index and checking condition
+        cmp r13, [r15]                                  ;|
+        jl inner_loop                                   ;|
+
+        call print_nl                                   ;| --> Printing new line to finish current row then increase
+
+    inc r12                                             ;|     index and check condition
+    cmp r12, [r14]                                      ;|
+    jl outer_loop                                       ;|
+
+    jmp end_of_print_matrix                             ;  --> Skip empty matrix message
+
+    zero_sized_printing_matrix:
+
+    mov rdi, empty_matrix_error                         ;| --> Printing empty matrix message
+    call print_rdi_string                               ;|
+
+    end_of_print_matrix:
+
+    add rsp, 8
+
+    pop r15  
+    pop r14  
+    pop r13  
+    pop r12  
+    pop rbx  
+    pop rbp  
 
 ret
 
@@ -84,7 +150,6 @@ multiply_matrices:
             mov rax, r12
             imul rax, [result_q_width]
             add rax, r13
-            shl rax, 2
             movss [result + rax * 4], xmm0
 
         inc r13
@@ -170,7 +235,7 @@ read_matrix:                                            ;RDI --> Pointer to matr
 
     xor r12, r12
     read_matrix_input_outer_loop:                       ;| --> Loop n * n times; Getting every element using subroutine read_float
-                                                        ;      then place it in an approperiate location.
+                                                        ;|     then place it in an approperiate location.
         xor r13, r13
         read_matrix_input_inner_loop:
 
