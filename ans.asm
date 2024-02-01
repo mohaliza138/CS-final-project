@@ -69,6 +69,12 @@ asm_main:
         mov rsi, v1_real_height
         mov rdx, v1_real_width
         call read_matrix
+        call print_nl
+        mov rdi, [v1_q_height]
+        call print_int
+        mov rdi, [v1_q_height]
+        call print_int
+        call print_nl
 
     print_v1:
 
@@ -129,6 +135,17 @@ asm_main:
     mov rdi, temp_k_row
     mov rsi, temp_k_row_real_height
     mov rdx, temp_k_row_real_width
+    call print_matrix
+
+    call print_nl
+    call print_nl
+    call print_nl
+
+    
+    call create_full_k_at_v2
+    mov rdi, v2
+    mov rsi, v2_real_height
+    mov rdx, v2_real_width
     call print_matrix
     
 
@@ -192,8 +209,58 @@ create_full_k_at_v2:
     sub rsp, 8
 
     call create_temp_k_row
+
+    mov rax, [v1_real_height]
+    imul QWORD[v1_real_height]
+    mov rsi, rax
+    mov rdi, v2_real_width
+    call set_size
     
-    ; TODO
+    mov rbx, [v1_real_height]
+    sub rbx, [v2_real_height]
+    inc rbx
+
+    mov rax, rbx
+    imul rbx
+    mov rsi, rax
+    mov rdi, v2_real_height
+    call set_size
+
+    xor r14, r14
+    xor r12, r12
+
+    create_full_k_at_v2_outer_loop:
+
+        xor r13, r13
+
+        create_full_k_at_v2_inner_loop:
+
+            mov rax, r14
+            imul QWORD[v2_q_width]
+            mov r15, rax
+
+            mov rax, r12
+            imul QWORD[v1_real_width]
+            add r15, rax
+            
+            add r15, r13
+            shl r15, 2
+
+            mov rsi, v2
+            add rsi, r15
+            mov rdi, temp_k_row
+            mov rdx, [temp_k_row_real_width]
+            call copy_vector    
+
+            inc r14    
+
+        inc r13
+        cmp r13, rbx
+        jl create_full_k_at_v2_inner_loop
+
+    inc r12
+    cmp r12, rbx
+    jl create_full_k_at_v2_outer_loop
 
     add rsp, 8
 
@@ -279,13 +346,13 @@ set_size:                                               ;RDI --> Pointer | RSI -
     mov [rdi], rsi
 
     mov rax, 3
-    xor rax, rsi
+    and rax, rsi
 
-    cmp rax, 3
+    cmp rax, 0
     je already_4x
 
-    add rsi, rax
-    inc rsi
+    sub rsi, rax
+    add rsi, 4
 
     already_4x:
 
