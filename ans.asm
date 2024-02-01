@@ -42,7 +42,69 @@ asm_main:
 
     sub rsp, 8                                          ;  --> Reserve some stack memory
 
+    set_v1:
 
+        call read_int
+        mov rdi, v1_real_height
+        mov rsi, rax
+        call set_size
+        
+        call read_int
+        mov rdi, v1_real_width
+        mov rsi, rax
+        call set_size
+
+        mov rdi, v1
+        mov rsi, v1_real_height
+        mov rdx, v1_real_width
+        call read_matrix
+
+    print_v1:
+
+        mov rdi, v1
+        mov rsi, v1_real_height
+        mov rdx, v1_real_width
+        call print_matrix
+
+
+    set_v2:
+
+        call read_int
+        mov rdi, v2_real_height
+        mov rsi, rax
+        call set_size
+        
+        call read_int
+        mov rdi, v2_real_width
+        mov rsi, rax
+        call set_size
+
+        mov rdi, v2
+        mov rsi, v2_real_height
+        mov rdx, v2_real_width
+        call read_matrix
+
+        call make_transpose_of_v2
+
+    print_v2:
+
+        mov rdi, v2
+        mov rsi, v2_real_height
+        mov rdx, v2_real_width
+        call print_matrix
+
+    multiply_v1_v2:
+
+        call multiply_v1_and_transpose
+    
+    print_result:
+
+        mov rdi, result
+        mov rsi, result_real_height
+        mov rdx, result_real_width
+        call print_matrix
+
+    
 
     add rsp, 8
 
@@ -271,7 +333,7 @@ print_matrix:                                           ;RDI --> Pointer to Matr
 
     ret
 
-read_matrix:                                           ;RDI --> Pointer to Matrix | RSI --> Matrix height pointer | RDX --> Matrix width pointer
+read_matrix:                                            ;RDI --> Pointer to Matrix | RSI --> Matrix height pointer | RDX --> Matrix width pointer
 
 	push rbp                                         
     push rbx                                         
@@ -306,8 +368,6 @@ read_matrix:                                           ;RDI --> Pointer to Matri
         cmp r13, [r15]                                  ;|
         jl read_matrix_inner_loop                       ;|
 
-        call print_nl                                   ;| --> Printing new line to finish current row then increase
-
     inc r12                                             ;|     index and check condition
     cmp r12, [r14]                                      ;|
     jl read_matrix_outer_loop                           ;|
@@ -334,15 +394,14 @@ multiply_v1_and_transpose:
     push r15 
 
     sub rsp, 8
+    
+    mov rdi, result_real_height
+    mov rsi, [v1_real_height]
+    call set_size
 
-    mov rax, [v1_real_height]
-    mov [result_real_height], rax
-    mov rax, [v1_q_height]
-    mov [result_q_height], rax
-    mov rax, [transpose_real_height]
-    mov [result_real_width], rax
-    mov rax, [transpose_q_height]
-    mov [result_q_width], rax
+    mov rdi, result_real_width
+    mov rsi, [transpose_real_height]
+    call set_size
 
     xor r12, r12
 
