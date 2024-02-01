@@ -1,7 +1,8 @@
 section .data
     v1: DD 1024 DUP(0.0)                                ;| TODO: Check wether these two have equal width or not
     v2: DD 1024 DUP(0.0)
-    Transpose: DD 1024 DUP(0.0)                         ;|
+    temp_k_row: DD 1024 DUP(0.0)
+    transpose: DD 1024 DUP(0.0)                         ;|
     result: DD 1024 DUP(0.0)
     v1_real_width: DQ 0
     v1_q_width: DQ 0
@@ -19,6 +20,10 @@ section .data
     result_q_width: DQ 0
     result_real_height: DQ 0
     result_q_height: DQ 0
+    temp_k_row_real_width: DQ 0
+    temp_k_row_q_width: DQ 0
+    temp_k_row_real_height: DQ 1
+    temp_k_row_q_height: DQ 4
     zero: DD 0.0
     printf_format_string: DB "%f ", 0
     read_float_format: DB "%f", 0
@@ -33,6 +38,7 @@ segment .text
     extern putchar                                      ;|
 
 asm_main:
+
 	push rbp                                            ;| --> As a default, the pushed registers should be unmodidied
     push rbx                                            ;|     after calling a subroutine. So we push them before every
     push r12                                            ;|     subroutine and pop them at the end.
@@ -43,6 +49,11 @@ asm_main:
     sub rsp, 8                                          ;  --> Reserve some stack memory
 
     set_v1:
+
+        mov rdi, v1
+        mov rsi, v1_real_height
+        mov rdx, v1_real_width
+        call clear_matrix
 
         call read_int
         mov rdi, v1_real_height
@@ -68,6 +79,11 @@ asm_main:
 
 
     set_v2:
+
+        mov rdi, v2
+        mov rsi, v2_real_height
+        mov rdx, v2_real_width
+        call clear_matrix
 
         call read_int
         mov rdi, v2_real_height
@@ -104,6 +120,16 @@ asm_main:
         mov rdx, result_real_width
         call print_matrix
 
+    call print_nl
+    call print_nl
+    call print_nl
+
+    
+    call create_temp_k_row
+    mov rdi, temp_k_row
+    mov rsi, temp_k_row_real_height
+    mov rdx, temp_k_row_real_width
+    call print_matrix
     
 
     add rsp, 8
@@ -115,7 +141,66 @@ asm_main:
     pop rbx                                             ;|
     pop rbp                                             ;|
 
-ret
+    ret
+
+create_temp_k_row:
+
+	push rbp                                         
+    push rbx                                         
+    push r12                                         
+    push r13                                        
+    push r14                                       
+    push r15    
+
+    sub rsp, 8
+
+    mov rax, [v1_real_height]
+    imul QWORD[v1_real_height]
+    mov rsi, rax
+    mov rdi, temp_k_row_real_width
+    call set_size
+
+    mov rdi, temp_k_row
+    mov rsi, temp_k_row_real_height
+    mov rdx, temp_k_row_real_width
+    call clear_matrix
+
+    xor r12, r12
+    
+    create_temp_k_row_outer_loop:
+
+        xor r13, r13
+
+        create_temp_k_row_inner_loop:
+
+            mov rax, r12
+            imul QWORD[v2_q_width]
+            add rax, r13
+            movss xmm0, [v2 + rax * 4]
+
+            mov rax, r12
+            imul QWORD[v1_real_width]
+            add rax, r13
+            movss [temp_k_row + rax * 4], xmm0
+
+        inc r13
+        cmp r13, [v2_real_width]
+        jl create_temp_k_row_inner_loop
+
+    inc r12
+    cmp r12, [v2_real_height]
+    jl create_temp_k_row_outer_loop
+
+    add rsp, 8
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    pop rbp
+
+    ret
 
 set_size:                                               ;RDI --> Pointer | RSI --> Size
     
@@ -165,7 +250,7 @@ make_transpose_of_v2:
 
     sub rsp, 8
 
-    mov rdi, Transpose
+    mov rdi, transpose
     mov rsi, transpose_real_height
     mov rdx, transpose_real_width
     call clear_matrix
@@ -195,7 +280,7 @@ make_transpose_of_v2:
             mov rax, r12
             imul QWORD[transpose_q_width]
             add rax, r13
-            mov [Transpose + rax * 4], rbx
+            mov [transpose + rax * 4], rbx
 
         inc r13
         cmp r13, [transpose_real_width]
@@ -250,8 +335,6 @@ clear_matrix:                                           ;RDI --> Pointer to Matr
         inc r13                                         ;| --> Increasing index and checking condition
         cmp r13, [r15 + 8]                              ;|
         jl clear_matrix_inner_loop                      ;|
-
-        call print_nl                                   ;| --> Printing new line to finish current row then increase
 
     inc r12                                             ;|     index and check condition
     cmp r12, [r14 + 8]                                  ;|
@@ -460,7 +543,7 @@ calculate_row_in_column:                                ;RDI --> Row number | RS
     mov rax, rsi
     imul rax, [transpose_q_width]
     shl rax, 2
-    add rax, Transpose
+    add rax, transpose
     mov r13, rax
 
     xor rcx, rcx
