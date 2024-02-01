@@ -143,6 +143,69 @@ asm_main:
 
     ret
 
+copy_vector:                                            ;RDI --> Source pointer | RSI --> Destination pointer | RDX --> Number of elements
+
+	push rbp                                         
+    push rbx                                         
+    push r12                                         
+    push r13                                        
+    push r14                                       
+    push r15    
+
+    sub rsp, 8
+
+    mov r12, rdi
+    mov r13, rsi
+    mov r14, rdx
+
+    xor r15, r15
+
+    copy_vector_loop:
+
+        movss xmm0, [r12 + r15 * 4]
+        movss [r13 + r15 * 4], xmm0
+
+    inc r15
+    cmp r15, r14
+    jl copy_vector_loop
+
+    add rsp, 8
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    pop rbp
+
+    ret
+
+create_full_k_at_v2:
+
+	push rbp                                         
+    push rbx                                         
+    push r12                                         
+    push r13                                        
+    push r14                                       
+    push r15    
+
+    sub rsp, 8
+
+    call create_temp_k_row
+    
+    ; TODO
+
+    add rsp, 8
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    pop rbp
+
+    ret
+
 create_temp_k_row:
 
 	push rbp                                         
