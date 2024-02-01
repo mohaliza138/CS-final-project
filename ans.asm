@@ -36,7 +36,11 @@ section .data
     print_int_format: DB "%ld ", 0
     read_int_format: DB "%ld", 0
     empty_matrix_error: DB "Invalid matrix sizes!", 10, 0
-    instructions_table: DQ input_loop, set_v1, set_v2, multiply_v1_v2, prepare_for_convolution, convolution, exit
+    invalid_instruction: DB "Invalid code! please try again", 10, 0
+    intro: DB 10, "! This program is used to calculate 2D convolution of matrices and comparing SIMD instructions with others.", 10, "  Producer: Mohammad Alizadeh ", 124, " Student ID: 401106244", 10, 0
+    input_instructions: DB 10, "Please enter one of these opcodes:", 10, "1 --> Setting base matrix", 10, "2 --> Setting kernel matrix", 10, "3 --> Multiply them", 10, "4 --> Show multiplication result", 10, "5 --> Prepare for convolution", 10, "6 --> Convolution", 10, "7 --> Exit", 10, 10, 0
+    exit_message: DB "Thank you for your attention. Hope you enjoyed...", 10, 0
+    instructions_table: DQ input_loop, set_v1, set_v2, multiply_v1_v2, print_result, prepare_for_convolution, convolution, exit
 
 segment .text
     global asm_main                                     ;  --> Declaring asm_main function globally in order to call it as a function in C
@@ -55,119 +59,149 @@ asm_main:
 
     sub rsp, 8                                          ;  --> Reserve some stack memory
 
+    mov rdi, intro                                      ;| --> Printing intro
+    call print_rdi_string                               ;|
+
+    jmp input_loop
+
+    invalid_input:                                      ;  --> In case input opcode doesn't match, this part is being used.
+        mov rdi, invalid_instruction                    ;| --> Printing Invalid instruction message
+        call print_rdi_string                           ;|
+
     input_loop:
+        mov rdi, input_instructions                     ;| --> Printing input instructions
+        call print_rdi_string                           ;|
 
-    set_v1:
+        call read_int                                   ;  --> Getting instruction code
+        cmp rax, 0                                      ;| --> Check instruction validation
+        jle invalid_input                               ;|
+        cmp rax, 7                                      ;|
+        jg invalid_input                                ;|
 
-        mov rdi, v1
-        mov rsi, v1_real_height
-        mov rdx, v1_real_width
-        call clear_matrix
+        shl rax, 3                                      ;| --> As every instruction uses 8 bytes of memory and all instructions
+        add rax, instructions_table                     ;|     are stored in labels_table, this part multiplies instruction index
+        mov rax, [rax]                                  ;|     by 8 and then, seeks it within labels_table 
+        jmp rax                                         ;|
 
-        call read_int
-        mov rdi, v1_real_height
-        mov rsi, rax
-        call set_size
+        set_v1:
+
+            mov rdi, v1
+            mov rsi, v1_real_height
+            mov rdx, v1_real_width
+            call clear_matrix
+
+            call read_int
+            mov rdi, v1_real_height
+            mov rsi, rax
+            call set_size
+            
+            call read_int
+            mov rdi, v1_real_width
+            mov rsi, rax
+            call set_size
+
+            mov rdi, v1
+            mov rsi, v1_real_height
+            mov rdx, v1_real_width
+            call clear_matrix
+
+            mov rdi, v1
+            mov rsi, v1_real_height
+            mov rdx, v1_real_width
+            call read_matrix
+
+            jmp input_loop
+
+        print_v1:
+
+            mov rdi, v1
+            mov rsi, v1_real_height
+            mov rdx, v1_real_width
+            call print_matrix
+
+            jmp input_loop
+
+        set_v2:
+
+            mov rdi, v2
+            mov rsi, v2_real_height
+            mov rdx, v2_real_width
+            call clear_matrix
+
+            call read_int
+            mov rdi, v2_real_height
+            mov rsi, rax
+            call set_size
+            
+            call read_int
+            mov rdi, v2_real_width
+            mov rsi, rax
+            call set_size
+
+            mov rdi, v2
+            mov rsi, v2_real_height
+            mov rdx, v2_real_width
+            call clear_matrix
+
+            mov rdi, v2
+            mov rsi, v2_real_height
+            mov rdx, v2_real_width
+            call read_matrix
+
+            call make_transpose_of_v2
+
+            mov rdi, transpose
+            mov rsi, transpose_real_height
+            mov rdx, transpose_real_width
+            call print_matrix
+
+            jmp input_loop
+
+        print_v2:
+
+            mov rdi, v2
+            mov rsi, v2_real_height
+            mov rdx, v2_real_width
+            call print_matrix
+            
+            jmp input_loop
+
+        multiply_v1_v2:
+
+            call multiply_v1_and_transpose
         
-        call read_int
-        mov rdi, v1_real_width
-        mov rsi, rax
-        call set_size
+        print_result:
 
-        mov rdi, v1
-        mov rsi, v1_real_height
-        mov rdx, v1_real_width
-        call clear_matrix
-
-        mov rdi, v1
-        mov rsi, v1_real_height
-        mov rdx, v1_real_width
-        call read_matrix
-
-        jmp input_loop
-
-    print_v1:
-
-        mov rdi, v1
-        mov rsi, v1_real_height
-        mov rdx, v1_real_width
-        call print_matrix
-
-        jmp input_loop
-
-    set_v2:
-
-        mov rdi, v2
-        mov rsi, v2_real_height
-        mov rdx, v2_real_width
-        call clear_matrix
-
-        call read_int
-        mov rdi, v2_real_height
-        mov rsi, rax
-        call set_size
+            mov rdi, result
+            mov rsi, result_real_height
+            mov rdx, result_real_width
+            call print_matrix
         
-        call read_int
-        mov rdi, v2_real_width
-        mov rsi, rax
-        call set_size
+            jmp input_loop
 
-        mov rdi, v2
-        mov rsi, v2_real_height
-        mov rdx, v2_real_width
-        call clear_matrix
+        prepare_for_convolution:
 
-        mov rdi, v2
-        mov rsi, v2_real_height
-        mov rdx, v2_real_width
-        call read_matrix
+            call create_full_k_at_v2
+            call convert_v1_to_row
 
-        call make_transpose_of_v2
+            jmp input_loop
 
-        jmp input_loop
+        convolution:
 
-    print_v2:
+            call multiply_v1_and_transpose
+            call convert_result_to_convolution_result
 
-        mov rdi, v2
-        mov rsi, v2_real_height
-        mov rdx, v2_real_width
-        call print_matrix
-        
-        jmp input_loop
+            mov rdi, convolution_result
+            mov rsi, convolution_result_real_height
+            mov rdx, convolution_result_real_width
+            call print_matrix
 
-    multiply_v1_v2:
+            jmp input_loop
 
-        call multiply_v1_and_transpose
-    
-    print_result:
+        exit:
 
-        mov rdi, result
-        mov rsi, result_real_height
-        mov rdx, result_real_width
-        call print_matrix
-    
-        jmp input_loop
-
-    prepare_for_convolution:
-
-        call create_full_k_at_v2
-        call convert_v1_to_row
-
-        jmp input_loop
-
-    convolution:
-
-        call multiply_v1_and_transpose
-        call convert_result_to_convolution_result
-
-        mov rdi, convolution_result
-        mov rsi, convolution_result_real_height
-        mov rdx, convolution_result_real_width
-        call print_matrix
-
-        jmp input_loop
-
-    exit:
+            mov rdi, exit_message                       ;| --> Print exit message and terminate the program (Break input loop)
+            call print_rdi_string                       ;|
     
     add rsp, 8
 
@@ -258,10 +292,6 @@ convert_v1_to_row:
             movss xmm0, [v1 + rax * 4] 
             movss [linear_v1_temp + rbx * 4], xmm0
 
-            ; mov rdi, rbx
-            ; call print_int
-            ; call printf_float
-
             inc rbx
 
         inc r13
@@ -294,7 +324,6 @@ convert_v1_to_row:
         
         movss xmm0, [linear_v1_temp + r12 * 4]
         movss [v1 + r12 * 4], xmm0
-        call printf_float
 
     inc r12
     cmp r12, [v1_real_width]
