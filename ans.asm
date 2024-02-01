@@ -271,6 +271,58 @@ print_matrix:                                           ;RDI --> Pointer to Matr
 
     ret
 
+read_matrix:                                           ;RDI --> Pointer to Matrix | RSI --> Matrix height pointer | RDX --> Matrix width pointer
+
+	push rbp                                         
+    push rbx                                         
+    push r12                                         
+    push r13                                        
+    push r14                                       
+    push r15    
+
+    sub rsp, 8
+    
+    mov rbx, rdi
+    mov r14, rsi
+    mov r15, rdx
+
+    xor r12, r12                                        ;  --> Using R12 as the outer-loop index
+
+    read_matrix_outer_loop:                             ;  --> Outer loop that prints each row in a different line
+
+        xor r13, r13                                    ;  --> Using R13 as the inner-loop index
+
+        read_matrix_inner_loop:                         ;  --> Inner loop that prints elements of a row seperately
+
+            call read_float
+
+            mov rax, r12
+            imul QWORD[r15 + 8]
+            add rax, r13
+
+            movss [rbx + rax * 4], xmm0
+
+        inc r13                                         ;| --> Increasing index and checking condition
+        cmp r13, [r15]                                  ;|
+        jl read_matrix_inner_loop                       ;|
+
+        call print_nl                                   ;| --> Printing new line to finish current row then increase
+
+    inc r12                                             ;|     index and check condition
+    cmp r12, [r14]                                      ;|
+    jl read_matrix_outer_loop                           ;|
+
+    add rsp, 8
+
+    pop r15  
+    pop r14  
+    pop r13  
+    pop r12  
+    pop rbx  
+    pop rbp  
+
+    ret
+
 
 multiply_v1_and_transpose:
 
@@ -376,49 +428,7 @@ calculate_row_in_column:                                ;RDI --> Row number | RS
 
     ret
 
-read_matrix:                                            ;RDI --> Pointer to matrix allocated memory | RSI --> Matrix size
 
-	push rbp                                         
-    push rbx                                         
-    push r12                                         
-    push r13                                       
-    push r14                                        
-    push r15    
-
-    sub rsp, 8
-
-    mov r15, rdi                                        ;  --> Moving RDI to an unmodifiable register
-
-    mov rbx, rsi  
-
-    xor r12, r12
-    read_matrix_input_outer_loop:                       ;| --> Loop n * n times; Getting every element using subroutine read_float
-                                                        ;|     then place it in an approperiate location.
-        xor r13, r13
-        read_matrix_input_inner_loop:
-
-            call read_float
-            movd xmm0, eax
-            movss [r13 + 4 * rbx], xmm0
-
-        inc r13
-        cmp r13, rbx
-        jl read_matrix_input_inner_loop
-
-    inc r12
-    cmp r12, rbx            
-    jl read_matrix_input_outer_loop                    
-
-    add rsp, 8
-
-    pop r15  
-    pop r14  
-    pop r13  
-    pop r12  
-    pop rbx  
-    pop rbp  
-
-    ret
 
 printf_float:                                           ;XMM0 --> Printing argument
     
