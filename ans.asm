@@ -3,7 +3,9 @@ section .data
     v2: DD 1024 DUP(0.0)
     temp_k_row: DD 1024 DUP(0.0)
     transpose: DD 1024 DUP(0.0)                         ;|
+    linear_v1_temp: DD 1024 DUP(0.0)
     result: DD 1024 DUP(0.0)
+    convolution_result: DD 1024 DUP(0.0)
     v1_real_width: DQ 0
     v1_q_width: DQ 0
     v1_real_height: DQ 0
@@ -20,6 +22,10 @@ section .data
     result_q_width: DQ 0
     result_real_height: DQ 0
     result_q_height: DQ 0
+    convolution_result_real_width: DQ 0
+    convolution_result_q_width: DQ 0
+    convolution_result_real_height: DQ 0
+    convolution_result_q_height: DQ 0
     temp_k_row_real_width: DQ 0
     temp_k_row_q_width: DQ 0
     temp_k_row_real_height: DQ 1
@@ -30,6 +36,7 @@ section .data
     print_int_format: DB "%ld ", 0
     read_int_format: DB "%ld", 0
     empty_matrix_error: DB "Invalid matrix sizes!", 10, 0
+    instructions_table: DQ input_loop, set_v1, set_v2, multiply_v1_v2, prepare_for_convolution, convolution, exit
 
 segment .text
     global asm_main                                     ;  --> Declaring asm_main function globally in order to call it as a function in C
@@ -47,6 +54,8 @@ asm_main:
     push r15                                            ;|     
 
     sub rsp, 8                                          ;  --> Reserve some stack memory
+
+    input_loop:
 
     set_v1:
 
@@ -68,13 +77,14 @@ asm_main:
         mov rdi, v1
         mov rsi, v1_real_height
         mov rdx, v1_real_width
+        call clear_matrix
+
+        mov rdi, v1
+        mov rsi, v1_real_height
+        mov rdx, v1_real_width
         call read_matrix
-        call print_nl
-        mov rdi, [v1_q_height]
-        call print_int
-        mov rdi, [v1_q_height]
-        call print_int
-        call print_nl
+
+        jmp input_loop
 
     print_v1:
 
@@ -83,6 +93,7 @@ asm_main:
         mov rdx, v1_real_width
         call print_matrix
 
+        jmp input_loop
 
     set_v2:
 
@@ -104,9 +115,16 @@ asm_main:
         mov rdi, v2
         mov rsi, v2_real_height
         mov rdx, v2_real_width
+        call clear_matrix
+
+        mov rdi, v2
+        mov rsi, v2_real_height
+        mov rdx, v2_real_width
         call read_matrix
 
         call make_transpose_of_v2
+
+        jmp input_loop
 
     print_v2:
 
@@ -114,6 +132,8 @@ asm_main:
         mov rsi, v2_real_height
         mov rdx, v2_real_width
         call print_matrix
+        
+        jmp input_loop
 
     multiply_v1_v2:
 
@@ -125,30 +145,30 @@ asm_main:
         mov rsi, result_real_height
         mov rdx, result_real_width
         call print_matrix
-
-    call print_nl
-    call print_nl
-    call print_nl
-
     
-    call create_temp_k_row
-    mov rdi, temp_k_row
-    mov rsi, temp_k_row_real_height
-    mov rdx, temp_k_row_real_width
-    call print_matrix
+        jmp input_loop
 
-    call print_nl
-    call print_nl
-    call print_nl
+    prepare_for_convolution:
 
+        call create_full_k_at_v2
+        call convert_v1_to_row
+
+        jmp input_loop
+
+    convolution:
+
+        call multiply_v1_and_transpose
+        call convert_result_to_convolution_result
+
+        mov rdi, convolution_result
+        mov rsi, convolution_result_real_height
+        mov rdx, convolution_result_real_width
+        call print_matrix
+
+        jmp input_loop
+
+    exit:
     
-    call create_full_k_at_v2
-    mov rdi, v2
-    mov rsi, v2_real_height
-    mov rdx, v2_real_width
-    call print_matrix
-    
-
     add rsp, 8
 
 	pop r15                                             ;| --> Restoring data we wanted to keep unchanged
@@ -157,6 +177,137 @@ asm_main:
 	pop r12                                             ;|
     pop rbx                                             ;|
     pop rbp                                             ;|
+
+    ret
+
+convert_result_to_convolution_result:
+
+	push rbp                                         
+    push rbx                                         
+    push r12                                         
+    push r13                                        
+    push r14                                       
+    push r15    
+
+    sub rsp, 8
+
+
+    xor rbx, rbx   
+    xor r12, r12
+
+    convert_result_to_convolution_result_outer_loop:
+
+        xor r13, r13
+
+        convert_result_to_convolution_result_inner_loop:
+
+            movss xmm0, [result + rbx * 4]
+
+            mov rax, r12
+            imul QWORD[convolution_result_q_width]
+            add rax, r13
+
+            movss [convolution_result + rax * 4], xmm0
+
+            inc rbx
+
+        inc r13
+        cmp r13, [convolution_result_real_width]
+        jl convert_result_to_convolution_result_inner_loop
+
+    inc r12
+    cmp r12, [convolution_result_real_height]
+    jl convert_result_to_convolution_result_outer_loop
+
+    add rsp, 8
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    pop rbp
+
+    ret
+
+convert_v1_to_row:
+    
+	push rbp                                         
+    push rbx                                         
+    push r12                                         
+    push r13                                        
+    push r14                                       
+    push r15    
+
+    sub rsp, 8
+
+    xor rbx, rbx
+
+    xor r12, r12
+
+    convert_v1_to_row_outer_loop:
+
+        xor r13, r13
+
+        convert_v1_to_row_inner_loop:
+
+            mov rax, r12
+            imul QWORD[v1_q_width]
+            add rax, r13
+
+            movss xmm0, [v1 + rax * 4] 
+            movss [linear_v1_temp + rbx * 4], xmm0
+
+            ; mov rdi, rbx
+            ; call print_int
+            ; call printf_float
+
+            inc rbx
+
+        inc r13
+        cmp r13, [v1_real_width]
+        jl convert_v1_to_row_inner_loop
+
+    inc r12
+    cmp r12, [v1_real_height]
+    jl convert_v1_to_row_outer_loop
+
+    mov rax, [v1_real_height]
+    imul QWORD[v1_real_height]
+
+    mov rsi, rax
+    mov rdi, v1_real_width
+    call set_size
+
+    mov rsi, 1
+    mov rdi, v1_real_height
+    call set_size
+
+    mov rdi, v1
+    mov rsi, v1_real_height
+    mov rdx, v1_real_width
+    call clear_matrix
+
+    xor r12, r12
+
+    setting_linear_v1_form_temp:
+        
+        movss xmm0, [linear_v1_temp + r12 * 4]
+        movss [v1 + r12 * 4], xmm0
+        call printf_float
+
+    inc r12
+    cmp r12, [v1_real_width]
+    jl setting_linear_v1_form_temp
+
+    add rsp, 8
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    pop rbp
 
     ret
 
@@ -213,18 +364,31 @@ create_full_k_at_v2:
     mov rax, [v1_real_height]
     imul QWORD[v1_real_height]
     mov rsi, rax
-    mov rdi, v2_real_width
+    mov rdi, transpose_real_width
     call set_size
     
     mov rbx, [v1_real_height]
     sub rbx, [v2_real_height]
     inc rbx
 
+    mov rsi, rbx
+    mov rdi, convolution_result_real_height
+    call set_size
+
+    mov rsi, rbx
+    mov rdi, convolution_result_real_width
+    call set_size
+
     mov rax, rbx
     imul rbx
     mov rsi, rax
-    mov rdi, v2_real_height
+    mov rdi, transpose_real_height
     call set_size
+    
+    mov rdi, transpose
+    mov rsi, transpose_real_height
+    mov rdx, transpose_real_width
+    call clear_matrix
 
     xor r14, r14
     xor r12, r12
@@ -236,7 +400,7 @@ create_full_k_at_v2:
         create_full_k_at_v2_inner_loop:
 
             mov rax, r14
-            imul QWORD[v2_q_width]
+            imul QWORD[transpose_q_width]
             mov r15, rax
 
             mov rax, r12
@@ -246,7 +410,7 @@ create_full_k_at_v2:
             add r15, r13
             shl r15, 2
 
-            mov rsi, v2
+            mov rsi, transpose
             add rsi, r15
             mov rdi, temp_k_row
             mov rdx, [temp_k_row_real_width]
