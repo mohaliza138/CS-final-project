@@ -55,6 +55,43 @@ asm_main:
 
 ret
 
+set_size:                                               ;RDI --> Pointer | RSI --> Size
+    
+	push rbp                                         
+    push rbx                                         
+    push r12                                         
+    push r13                                        
+    push r14                                       
+    push r15    
+
+    sub rsp, 8
+
+    mov [rdi], rsi
+
+    mov rax, 3
+    xor rax, rsi
+
+    cmp rax, 3
+    je already_4x
+
+    add rsi, rax
+    inc rsi
+
+    already_4x:
+
+    mov [rdi + 8], rsi
+
+    add rsp, 8
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    pop rbp
+
+    ret
+
 make_transpose_of_v2:
 
 	push rbp                                         
@@ -134,7 +171,7 @@ clear_matrix:                                           ;RDI --> Pointer to Matr
 
     xor r12, r12                                        ;  --> Using R12 as the outer-loop index
 
-    clear_matrix_outer_loop:                                         ;  --> Outer loop that prints each row in a different line
+    clear_matrix_outer_loop:                            ;  --> Outer loop that prints each row in a different line
 
         xor r13, r13                                    ;  --> Using R13 as the inner-loop index
 
@@ -191,11 +228,11 @@ print_matrix:                                           ;RDI --> Pointer to Matr
 
     xor r12, r12                                        ;  --> Using R12 as the outer-loop index
 
-    print_matrix_outer_loop:                                         ;  --> Outer loop that prints each row in a different line
+    print_matrix_outer_loop:                            ;  --> Outer loop that prints each row in a different line
 
         xor r13, r13                                    ;  --> Using R13 as the inner-loop index
 
-        print_matrix_inner_loop:                                     ;  --> Inner loop that prints elements of a row seperately
+        print_matrix_inner_loop:                        ;  --> Inner loop that prints elements of a row seperately
 
             mov rax, r12
             imul QWORD[r15 + 8]
@@ -206,13 +243,13 @@ print_matrix:                                           ;RDI --> Pointer to Matr
 
         inc r13                                         ;| --> Increasing index and checking condition
         cmp r13, [r15]                                  ;|
-        jl print_matrix_inner_loop                                   ;|
+        jl print_matrix_inner_loop                      ;|
 
         call print_nl                                   ;| --> Printing new line to finish current row then increase
 
     inc r12                                             ;|     index and check condition
     cmp r12, [r14]                                      ;|
-    jl print_matrix_outer_loop                                       ;|
+    jl print_matrix_outer_loop                          ;|
 
     jmp end_of_print_matrix                             ;  --> Skip empty matrix message
 
