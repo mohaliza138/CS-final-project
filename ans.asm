@@ -178,8 +178,22 @@ asm_main:
             jne invalid_multiply                        ;|
             cmp rax, 0                                  ;|
             je invalid_multiply                         ;|
+            
+            call sys_gettimeofday_ms
+            mov r12, rax
 
+            mov r13, 1000000
+            cornometer_loop:
             call multiply_v1_and_transpose              ;  --> Call multiply subroutine
+            dec r13
+            jge cornometer_loop
+
+            call sys_gettimeofday_ms
+            mov rdi, rax
+            sub rdi, r12
+            call print_int
+            call print_nl
+
             jmp print_result                            ;  --> Printing the result
 
             invalid_multiply:
@@ -195,7 +209,7 @@ asm_main:
             mov rsi, result_real_height                 ;| 
             mov rdx, result_real_width                  ;| 
             call print_matrix                           ;| 
-        
+
             jmp input_loop                              ;  --> Back to input loop
 
         prepare_for_convolution:
@@ -1077,5 +1091,39 @@ read_int:                                               ;RAX --> Result
     mov rax, [rsp]                                      ;  --> Moving result to RAX
 
     add rsp, 8
+
+    ret
+
+sys_gettimeofday_ms:
+
+	push rbp                                         
+    push rbx                                         
+    push r12                                         
+    push r13                                       
+    push r14                                        
+    push r15 
+
+    sub rsp, 8
+
+    mov rax, 96
+    lea rdi, [rsp - 16]
+    xor esi, esi
+    syscall
+    mov ecx, 1000
+    mov rax, [rdi + 8]
+    xor edx, edx
+    div rcx
+    mov rdx, [rdi]
+    imul rdx, rcx
+    add rax, rdx
+
+    add rsp, 8
+
+    pop r15  
+    pop r14  
+    pop r13  
+    pop r12  
+    pop rbx  
+    pop rbp  
 
     ret
